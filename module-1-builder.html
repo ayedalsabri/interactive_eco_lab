@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 1: The Economic Model Builder</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Plotly.js for interactive graphing -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* Custom styles to enhance the look and feel */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* light gray background */
+        }
+        .control-panel-bg {
+            background-color: #ffffff;
+        }
+        .plot-bg {
+            background-color: #ffffff;
+        }
+        .slider-label {
+            min-width: 80px; /* Ensures alignment */
+        }
+        .slider-value {
+            min-width: 50px; /* Ensures alignment */
+            font-variant-numeric: tabular-nums;
+        }
+        h1 {
+            color: #1e293b; /* slate-800 */
+        }
+        h2 {
+            color: #334155; /* slate-700 */
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header Section -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">Interactive Economic Labs</h1>
+            <p class="text-lg text-slate-600">Module 1: The Economic Model Builder</p>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+            <!-- Controls Panel (Left Side on Large Screens) -->
+            <div class="lg:col-span-1 control-panel-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                <h2 class="text-2xl font-semibold mb-6 border-b pb-4">Controls</h2>
+
+                <!-- Function Type Selector -->
+                <div class="mb-6">
+                    <label for="functionType" class="block text-sm font-medium text-slate-700 mb-2">1. Select a Function Type:</label>
+                    <select id="functionType" class="w-full p-2 border border-slate-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        <option value="linear" selected>Linear Function</option>
+                        <option value="quadratic">Quadratic Function</option>
+                        <option value="exponential">Exponential Function</option>
+                        <option value="logarithmic">Logarithmic Function</option>
+                    </select>
+                </div>
+
+                <!-- Dynamic Sliders for Parameters -->
+                <div class="mb-6">
+                     <label class="block text-sm font-medium text-slate-700 mb-2">2. Adjust Parameters:</label>
+                    <div id="sliders-container" class="space-y-4">
+                        <!-- Sliders will be dynamically inserted here -->
+                    </div>
+                </div>
+
+                <!-- Economic Context Toggle -->
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">3. Add Context:</label>
+                    <div class="flex items-center">
+                        <input id="economicContext" type="checkbox" class="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
+                        <label for="economicContext" class="ml-2 block text-sm text-slate-900">Show Economic Context</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Graph Display (Right Side on Large Screens) -->
+            <div class="lg:col-span-2 plot-bg p-4 rounded-xl shadow-lg border border-slate-200 min-h-[400px] md:min-h-[500px]">
+                <div id="plot" class="w-full h-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM ELEMENT REFERENCES ---
+        const functionTypeSelect = document.getElementById('functionType');
+        const slidersContainer = document.getElementById('sliders-container');
+        const economicContextToggle = document.getElementById('economicContext');
+        const plotDiv = document.getElementById('plot');
+
+        // --- GLOBAL STATE ---
+        // This object holds the definitions for each function type, including its parameters.
+        const functionDefinitions = {
+            linear: {
+                name: "Linear",
+                equation: "y = mx + c",
+                params: [
+                    { id: 'm', name: 'Slope (m)', min: -10, max: 10, step: 0.1, value: 1 },
+                    { id: 'c', name: 'Intercept (c)', min: -10, max: 10, step: 0.5, value: 0 }
+                ],
+                context: "e.g., A simple Demand or Supply Curve"
+            },
+            quadratic: {
+                name: "Quadratic",
+                equation: "y = ax² + bx + c",
+                params: [
+                    { id: 'a', name: 'Coefficient (a)', min: -5, max: 5, step: 0.1, value: 1 },
+                    { id: 'b', name: 'Coefficient (b)', min: -10, max: 10, step: 0.5, value: 0 },
+                    { id: 'c', name: 'Intercept (c)', min: -10, max: 10, step: 0.5, value: 0 }
+                ],
+                context: "e.g., A Total Cost or Profit Function"
+            },
+            exponential: {
+                name: "Exponential",
+                equation: "y = a * b^x",
+                params: [
+                    { id: 'a', name: 'Base (a)', min: -5, max: 5, step: 0.1, value: 1 },
+                    { id: 'b', name: 'Rate (b)', min: 0.1, max: 3, step: 0.05, value: 1.2 }
+                ],
+                context: "e.g., Economic Growth or Compound Interest"
+            },
+            logarithmic: {
+                name: "Logarithmic",
+                equation: "y = a * log(x) + c",
+                params: [
+                    { id: 'a', name: 'Multiplier (a)', min: -5, max: 5, step: 0.1, value: 1 },
+                    { id: 'c', name: 'Shift (c)', min: -10, max: 10, step: 0.5, value: 0 }
+                ],
+                context: "e.g., A Utility Function with Diminishing Returns"
+            }
+        };
+
+        // --- CORE FUNCTIONS ---
+
+        /**
+         * Generates the HTML for a single slider and its labels.
+         * @param {object} param - The parameter definition object.
+         * @returns {string} - The HTML string for the slider control.
+         */
+        function createSliderHTML(param) {
+            return `
+                <div class="flex items-center space-x-4">
+                    <label for="${param.id}" class="slider-label text-sm text-slate-600">${param.name}:</label>
+                    <input type="range" id="${param.id}" min="${param.min}" max="${param.max}" step="${param.step}" value="${param.value}" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer">
+                    <span id="${param.id}-value" class="slider-value text-sm font-medium text-slate-800">${param.value}</span>
+                </div>
+            `;
+        }
+
+        /**
+         * Updates the sliders displayed in the control panel based on the selected function type.
+         */
+        function updateSliders() {
+            const funcType = functionTypeSelect.value;
+            const { params } = functionDefinitions[funcType];
+
+            // Clear existing sliders
+            slidersContainer.innerHTML = ''; 
+
+            // Create and append new sliders
+            params.forEach(param => {
+                slidersContainer.innerHTML += createSliderHTML(param);
+            });
+            
+            // Add event listeners to the new sliders
+            params.forEach(param => {
+                const slider = document.getElementById(param.id);
+                const valueSpan = document.getElementById(`${param.id}-value`);
+                slider.addEventListener('input', () => {
+                    valueSpan.textContent = slider.value;
+                    updatePlot();
+                });
+            });
+        }
+        
+        /**
+         * Reads current slider values for the active function type.
+         * @returns {object} - An object with parameter names as keys and their values.
+         */
+        function getSliderValues() {
+            const funcType = functionTypeSelect.value;
+            const { params } = functionDefinitions[funcType];
+            const values = {};
+            params.forEach(param => {
+                values[param.id] = parseFloat(document.getElementById(param.id).value);
+            });
+            return values;
+        }
+
+        /**
+         * Main function to redraw the Plotly graph.
+         * It calculates data based on the selected function and current slider values.
+         */
+        function updatePlot() {
+            const funcType = functionTypeSelect.value;
+            const values = getSliderValues();
+            const def = functionDefinitions[funcType];
+
+            // Generate x values
+            const x = Array.from({length: 201}, (_, i) => (i - 100) * 0.1); // -10 to 10
+            
+            // Generate y values based on the selected function
+            let y;
+            switch (funcType) {
+                case 'linear':
+                    y = x.map(val => values.m * val + values.c);
+                    break;
+                case 'quadratic':
+                    y = x.map(val => values.a * val**2 + values.b * val + values.c);
+                    break;
+                case 'exponential':
+                    // Avoid issues with negative bases if needed, though b is restricted to > 0
+                    y = x.map(val => values.a * Math.pow(values.b, val));
+                    break;
+                case 'logarithmic':
+                    // Log is undefined for x <= 0, so we adjust the domain
+                    const logX = Array.from({length: 100}, (_, i) => (i + 1) * 0.1); // 0.1 to 10
+                    y = logX.map(val => values.a * Math.log(val) + values.c);
+                    x.splice(0, x.length, ...logX); // Replace x array for log plot
+                    break;
+            }
+
+            // Define plot layout
+            const layout = {
+                title: {
+                    text: economicContextToggle.checked ? `${def.name} Function <br><span style="font-size: 0.8em; color: #475569;">${def.context}</span>` : `${def.name} Function`,
+                    font: {
+                        size: 20
+                    }
+                },
+                xaxis: { title: 'X-axis', zeroline: true, zerolinecolor: '#cbd5e1' },
+                yaxis: { title: 'Y-axis', zeroline: true, zerolinecolor: '#cbd5e1' },
+                margin: { l: 50, r: 30, b: 50, t: 80 },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: {
+                    family: 'Inter, sans-serif',
+                    color: '#334155'
+                }
+            };
+            
+            // Define plot data trace
+            const trace = {
+                x: x,
+                y: y,
+                mode: 'lines',
+                line: {
+                    color: '#4f46e5', // indigo-600
+                    width: 3
+                },
+                type: 'scatter'
+            };
+
+            // Redraw the plot
+            Plotly.react(plotDiv, [trace], layout, {responsive: true});
+        }
+        
+        // --- EVENT LISTENERS INITIALIZATION ---
+        function initialize() {
+            // Update sliders and plot when function type changes
+            functionTypeSelect.addEventListener('change', () => {
+                updateSliders();
+                updatePlot();
+            });
+
+            // Update plot when context toggle changes
+            economicContextToggle.addEventListener('change', updatePlot);
+
+            // Initial setup on page load
+            updateSliders();
+            updatePlot();
+        }
+        
+        // Run initialization when the page is fully loaded
+        window.onload = initialize;
+
+    </script>
+</body>
+</html>
