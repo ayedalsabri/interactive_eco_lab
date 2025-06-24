@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 2: Interactive Equilibrium Analyzer</title>
+    
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Plotly.js for interactive graphing -->
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        .control-panel-bg, .plot-bg, .results-bg {
+            background-color: #ffffff;
+        }
+        .slider-label { min-width: 110px; }
+        .result-label { min-width: 150px; }
+        .result-value { font-weight: 600; color: #1e293b; }
+        h1, h2, h3 { color: #1e293b; }
+        .hidden { display: none; }
+        /* Style for number inputs */
+        input[type="number"] { -moz-appearance: textfield; }
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .explanation-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+        }
+        code {
+            background-color: #e2e8f0;
+            padding: 0.1rem 0.3rem;
+            border-radius: 0.25rem;
+            font-family: monospace;
+            color: #334155;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <!-- Header Section -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">Interactive Economic Labs</h1>
+            <p class="text-lg text-slate-600">Module 2: Interactive Equilibrium Analyzer</p>
+        </header>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Left Column: Controls and Results -->
+            <div class="lg:col-span-1 space-y-8">
+                <!-- Controls Panel -->
+                <div class="control-panel-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-semibold mb-6 border-b pb-4">Market Controls</h2>
+                    
+                    <!-- Demand Curve Controls -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3">Demand Curve (P = a - bQ)</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <label for="demand_a_slider" class="slider-label text-sm text-slate-600">Intercept (a):</label>
+                                <input type="range" id="demand_a_slider" min="10" max="200" step="1" value="100" class="w-full">
+                                <input type="number" id="demand_a_input" min="10" max="200" step="1" value="100" class="w-20 p-1 border border-slate-300 rounded-md text-center">
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <label for="demand_b_slider" class="slider-label text-sm text-slate-600">Slope (b):</label>
+                                <input type="range" id="demand_b_slider" min="0.5" max="10" step="0.1" value="2" class="w-full">
+                                <input type="number" id="demand_b_input" min="0.5" max="10" step="0.1" value="2" class="w-20 p-1 border border-slate-300 rounded-md text-center">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Supply Curve Controls -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-3">Supply Curve (P = c + dQ)</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <label for="supply_c_slider" class="slider-label text-sm text-slate-600">Intercept (c):</label>
+                                <input type="range" id="supply_c_slider" min="0" max="100" step="1" value="20" class="w-full">
+                                <input type="number" id="supply_c_input" min="0" max="100" step="1" value="20" class="w-20 p-1 border border-slate-300 rounded-md text-center">
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <label for="supply_d_slider" class="slider-label text-sm text-slate-600">Slope (d):</label>
+                                <input type="range" id="supply_d_slider" min="0.5" max="10" step="0.1" value="2" class="w-full">
+                                <input type="number" id="supply_d_input" min="0.5" max="10" step="0.1" value="2" class="w-20 p-1 border border-slate-300 rounded-md text-center">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Intervention Controls -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-3">Government Intervention</h3>
+                        <select id="interventionType" class="w-full p-2 border border-slate-300 rounded-md shadow-sm mb-4">
+                            <option value="none" selected>None</option>
+                            <option value="tax">Per-Unit Tax</option>
+                            <option value="subsidy">Per-Unit Subsidy</option>
+                        </select>
+                        <div id="interventionSliderContainer" class="hidden space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <label id="interventionLabel" for="intervention_slider" class="slider-label text-sm text-slate-600">Tax Amount:</label>
+                                <input type="range" id="intervention_slider" min="0" max="50" step="1" value="10" class="w-full">
+                                <input type="number" id="intervention_input" min="0" max="50" step="1" value="10" class="w-20 p-1 border border-slate-300 rounded-md text-center">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Panel -->
+                <div id="results" class="results-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-semibold mb-6 border-b pb-4">Analysis</h2>
+                    <div id="results-content" class="space-y-3 text-sm"></div>
+                    <div id="solution-approach-content" class="space-y-2 text-sm mt-4"></div>
+                    <div id="economic-interpretation-content" class="space-y-2 text-sm mt-4"></div>
+                </div>
+            </div>
+
+            <!-- Right Column: Graph -->
+            <div class="lg:col-span-2 plot-bg p-4 rounded-xl shadow-lg border border-slate-200 min-h-[500px] md:min-h-[600px]">
+                <div id="plot" class="w-full h-full"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM ELEMENT REFERENCES ---
+        const elements = {
+            demand_a_slider: document.getElementById('demand_a_slider'), demand_a_input: document.getElementById('demand_a_input'),
+            demand_b_slider: document.getElementById('demand_b_slider'), demand_b_input: document.getElementById('demand_b_input'),
+            supply_c_slider: document.getElementById('supply_c_slider'), supply_c_input: document.getElementById('supply_c_input'),
+            supply_d_slider: document.getElementById('supply_d_slider'), supply_d_input: document.getElementById('supply_d_input'),
+            interventionType: document.getElementById('interventionType'),
+            interventionSliderContainer: document.getElementById('interventionSliderContainer'),
+            interventionLabel: document.getElementById('interventionLabel'),
+            intervention_slider: document.getElementById('intervention_slider'), intervention_input: document.getElementById('intervention_input'),
+            plotDiv: document.getElementById('plot'),
+            resultsContent: document.getElementById('results-content'),
+            solutionContent: document.getElementById('solution-approach-content'),
+            interpretationContent: document.getElementById('economic-interpretation-content'),
+        };
+
+        // --- CORE LOGIC ---
+        function solveEquilibrium(a, b, c, d) {
+            const q = (a - c) / (b + d);
+            if (q < 0 || !isFinite(q)) return { p: null, q: null };
+            const p = a - b * q;
+            return { p, q };
+        }
+
+        function updateMarket() {
+            const p = {
+                a: parseFloat(elements.demand_a_slider.value), b: parseFloat(elements.demand_b_slider.value),
+                c: parseFloat(elements.supply_c_slider.value), d: parseFloat(elements.supply_d_slider.value),
+                intervention: elements.interventionType.value,
+                interventionVal: parseFloat(elements.intervention_slider.value)
+            };
+
+            const initialEq = solveEquilibrium(p.a, p.b, p.c, p.d);
+            
+            const supplyInterceptShifted = p.intervention === 'tax' ? p.c + p.interventionVal : (p.intervention === 'subsidy' ? p.c - p.interventionVal : p.c);
+            const interventionEq = solveEquilibrium(p.a, p.b, supplyInterceptShifted, p.d);
+
+            let pc = null, pp = null;
+            if (p.intervention !== 'none' && interventionEq.q > 0) {
+                pc = interventionEq.p;
+                pp = p.intervention === 'tax' ? pc - p.interventionVal : pc + p.interventionVal;
+            }
+
+            updatePlot(p, initialEq, interventionEq);
+            updateResults(p, initialEq, interventionEq, pc, pp);
+        }
+        
+        // --- UI UPDATE FUNCTIONS ---
+        function updatePlot(p, initialEq, interventionEq) {
+            const traces = [];
+            const q_values = [initialEq.q, interventionEq?.q].filter(q => q > 0);
+            const max_q = q_values.length > 0 ? Math.max(...q_values) * 1.8 : 50;
+
+            traces.push({ x: [0, p.a / p.b], y: [p.a, 0], mode: 'lines', name: 'Demand', line: { color: 'rgb(220, 38, 38)', width: 3 } });
+            traces.push({ x: [0, max_q], y: [p.c, p.c + p.d * max_q], mode: 'lines', name: 'Supply (Original)', line: { color: 'rgb(37, 99, 235)', width: 3 } });
+
+            if (initialEq.q > 0) {
+                traces.push({ x: [initialEq.q], y: [initialEq.p], mode: 'markers', name: 'Initial Equilibrium', marker: { color: 'rgb(51, 65, 85)', size: 12, symbol: 'circle' } });
+            }
+
+            if (p.intervention !== 'none' && interventionEq.q > 0) {
+                const supplyInterceptShifted = p.c + (p.intervention === 'tax' ? p.interventionVal : -p.interventionVal);
+                traces.push({ x: [0, max_q], y: [supplyInterceptShifted, supplyInterceptShifted + p.d * max_q], mode: 'lines', name: `Supply (${p.intervention})`, line: { color: 'rgb(2, 132, 199)', width: 3, dash: 'dash' } });
+                traces.push({ x: [interventionEq.q], y: [interventionEq.p], mode: 'markers', name: 'New Equilibrium', marker: { color: 'rgb(234, 88, 12)', size: 12, symbol: 'star' } });
+            }
+            
+            const layout = { title: 'Market Equilibrium Analysis', xaxis: { title: 'Quantity (Q)', range: [0, max_q], zeroline: true }, yaxis: { title: 'Price (P)', range: [0, p.a * 1.1], zeroline: true }, showlegend: true, legend: { x: 0.6, y: 1.1, orientation: 'h' }, margin: { l: 50, r: 30, b: 50, t: 50 }, paper_bgcolor: 'rgba(0,0,0,0)', plot_bgcolor: 'rgba(0,0,0,0)', font: { family: 'Inter, sans-serif' } };
+            Plotly.react(elements.plotDiv, traces, layout, { responsive: true });
+        }
+
+        function updateResults(p, initialEq, interventionEq, pc, pp) {
+            // -- Numerical Results --
+            let resultsHtml = `<h3 class="text-lg font-semibold mb-2">Numerical Results</h3>`;
+            function createRow(label, value) {
+                if (value === null || value === undefined || isNaN(value)) return '';
+                return `<div class="flex justify-between items-center"><span class="result-label text-slate-600">${label}</span><span class="result-value">${value}</span></div>`;
+            }
+            resultsHtml += '<div class="font-medium text-slate-800">Initial Market:</div>';
+            if (initialEq.q > 0) {
+                resultsHtml += createRow('Equilibrium Price (P*):', `$${initialEq.p.toFixed(2)}`);
+                resultsHtml += createRow('Equilibrium Quantity (Q*):', initialEq.q.toFixed(2));
+            } else {
+                resultsHtml += '<p class="text-red-500">No valid equilibrium.</p>';
+            }
+            if (p.intervention !== 'none' && interventionEq.q > 0) {
+                resultsHtml += `<div class="font-medium text-slate-800 mt-2">After ${p.intervention}:</div>`;
+                resultsHtml += createRow('New Quantity:', interventionEq.q.toFixed(2));
+                resultsHtml += createRow('Price Consumers Pay:', `$${pc.toFixed(2)}`);
+                resultsHtml += createRow('Price Producers Receive:', `$${pp.toFixed(2)}`);
+                const total = p.interventionVal * interventionEq.q;
+                const totalLabel = p.intervention === 'tax' ? 'Tax Revenue:' : 'Subsidy Cost:';
+                resultsHtml += createRow(totalLabel, `$${total.toFixed(2)}`);
+            }
+            elements.resultsContent.innerHTML = resultsHtml;
+
+            // -- Solution Approach --
+            let solutionHtml = `<h3 class="text-lg font-semibold mb-2">Solution Approach</h3><div class="explanation-box">`;
+            if (initialEq.q > 0) {
+                const supply_c_effective = p.intervention === 'none' ? p.c : (p.intervention === 'tax' ? `(${p.c} + ${p.interventionVal})` : `(${p.c} - ${p.interventionVal})`);
+                solutionHtml += `1. Set Demand Price = Supply Price: <br> <code>${p.a} - ${p.b}Q = ${supply_c_effective} + ${p.d}Q</code><br>`;
+                solutionHtml += `2. Solve for Q: <br> <code>${p.a} - ${p.c + (p.intervention === 'tax' ? p.interventionVal : (p.intervention === 'subsidy' ? -p.interventionVal : 0))} = ${p.b}Q + ${p.d}Q</code><br>`;
+                solutionHtml += `<code>Q* = (${p.a - (p.c + (p.intervention === 'tax' ? p.interventionVal : (p.intervention === 'subsidy' ? -p.interventionVal : 0)))}) / (${p.b} + ${p.d}) = ${interventionEq.q.toFixed(2)}</code><br>`;
+                solutionHtml += `3. Find P by substituting Q* into Demand: <br> <code>P* = ${p.a} - ${p.b}(${interventionEq.q.toFixed(2)}) = ${interventionEq.p.toFixed(2)}</code>`;
+            } else {
+                solutionHtml += "The supply and demand curves do not intersect at a positive price and quantity."
+            }
+            solutionHtml += `</div>`;
+            elements.solutionContent.innerHTML = solutionHtml;
+            
+            // -- Economic Interpretation --
+            let interpretationHtml = `<h3 class="text-lg font-semibold mb-2">Economic Interpretation</h3><div class="explanation-box">`;
+            if (initialEq.q <= 0) {
+                interpretationHtml += "No market activity occurs because the highest price consumers will pay is less than the lowest price producers will accept."
+            } else if (p.intervention === 'tax') {
+                interpretationHtml += `The per-unit tax of $${p.interventionVal.toFixed(2)} increases producers' costs, shifting the supply curve up. This leads to a lower equilibrium quantity. Consumers pay more, and producers receive less, with the government collecting revenue on the traded units.`;
+            } else if (p.intervention === 'subsidy') {
+                interpretationHtml += `The per-unit subsidy of $${p.interventionVal.toFixed(2)} decreases producers' costs, shifting the supply curve down. This leads to a higher equilibrium quantity. Consumers pay less, and producers receive more, at a cost to the government.`;
+            } else {
+                interpretationHtml += `The market reaches equilibrium where the quantity consumers want to buy equals the quantity producers want to sell. At this point, the market clears, and there are no shortages or surpluses.`;
+            }
+            interpretationHtml += `</div>`;
+            elements.interpretationContent.innerHTML = interpretationHtml;
+        }
+
+        // --- EVENT LISTENERS INITIALIZATION ---
+        function initialize() {
+            function syncControls(slider, input) {
+                slider.addEventListener('input', () => { input.value = slider.value; updateMarket(); });
+                input.addEventListener('input', () => {
+                    const value = parseFloat(input.value), min = parseFloat(slider.min), max = parseFloat(slider.max);
+                    if (value >= min && value <= max) { slider.value = input.value; updateMarket(); }
+                });
+                input.addEventListener('change', () => {
+                    const value = parseFloat(input.value), min = parseFloat(slider.min), max = parseFloat(slider.max);
+                    if (value < min) input.value = min;
+                    if (value > max) input.value = max;
+                    if (isNaN(value)) input.value = slider.value;
+                    slider.value = input.value; updateMarket();
+                });
+            }
+            syncControls(elements.demand_a_slider, elements.demand_a_input);
+            syncControls(elements.demand_b_slider, elements.demand_b_input);
+            syncControls(elements.supply_c_slider, elements.supply_c_input);
+            syncControls(elements.supply_d_slider, elements.supply_d_input);
+            syncControls(elements.intervention_slider, elements.intervention_input);
+            
+            elements.interventionType.addEventListener('change', () => {
+                const type = elements.interventionType.value;
+                elements.interventionSliderContainer.classList.toggle('hidden', type === 'none');
+                if (type !== 'none') {
+                    elements.interventionLabel.textContent = type === 'tax' ? 'Tax Amount:' : 'Subsidy Amount:';
+                }
+                updateMarket();
+
+            });
+            updateMarket();
+        }
+        
+        window.onload = initialize;
+    </script>
+</body>
+</html>
