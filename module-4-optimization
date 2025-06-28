@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 4: The Firm's Optimization Dashboard (Upgraded)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .control-panel-bg, .plot-bg, .results-bg { background-color: #ffffff; }
+        .slider-label { min-width: 140px; }
+        h1, h2, h3 { color: #1e293b; }
+        .explanation-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; }
+        input[type="number"] { -moz-appearance: textfield; width: 70px; text-align: center; border: 1px solid #cbd5e1; border-radius: 0.25rem; }
+        input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .hidden { display: none; }
+        .nav-link { padding: 8px 12px; border-radius: 6px; transition: background-color 0.2s; }
+        .nav-link:hover, .nav-link.active { background-color: #eef2ff; color: #4f46e5; }
+        .feedback-correct { border: 2px solid #22c55e !important; }
+        .feedback-incorrect { border: 2px solid #ef4444 !important; }
+        code { background-color: #e2e8f0; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-family: monospace; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Intra-Module Navigation -->
+    <nav class="max-w-7xl mx-auto mb-8 bg-white p-3 rounded-lg shadow-sm border border-slate-200">
+        <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium text-slate-700">
+            <a href="index.html" class="nav-link">Dashboard</a>
+            <a href="module-1-builder.html" class="nav-link">1. Builder</a>
+            <a href="module-2-equilibrium.html" class="nav-link">2. Equilibrium</a>
+            <a href="module-3-elasticity.html" class="nav-link">3. Elasticity</a>
+            <a href="module-4-optimization.html" class="nav-link active">4. Optimization</a>
+            <a href="module-5-constrained.html" class="nav-link">5. Constrained Opt.</a>
+            <a href="module-6-production.html" class="nav-link">6. Production/IO</a>
+            <a href="module-7-surplus-lp.html" class="nav-link">7. Surplus/LP</a>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">The Firm's Optimization Dashboard</h1>
+            <p class="text-lg text-slate-600">Analyze profit maximization using Total and Marginal curves.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 space-y-8">
+                <div class="control-panel-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-4">Firm & Market Controls</h2>
+                    <div class="mb-6">
+                        <label for="loadScenario" class="block text-sm font-medium text-slate-700 mb-2">1. Load Scenario:</label>
+                        <select id="loadScenario" class="w-full p-2 border rounded-md shadow-sm">
+                            <option value="custom">-- Custom Sandbox --</option>
+                            <option value="startup">Tech Startup (High Margin)</option>
+                            <option value="utility">Utility Co. (High Fixed Cost)</option>
+                        </select>
+                    </div>
+                    <div id="controls-container"></div>
+                </div>
+                 <div class="results-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-4">Practice Problem</h2>
+                    <div id="problem-container"></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-8">
+                <div class="plot-bg p-4 rounded-xl shadow-lg border border-slate-200">
+                    <div id="plot-totals" class="w-full h-[300px]"></div>
+                    <div id="plot-marginals" class="w-full h-[300px]"></div>
+                </div>
+                <div class="results-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-4">Sandbox Analysis</h2>
+                    <div id="analysis-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const elements = {
+            loadScenario: document.getElementById('loadScenario'), controlsContainer: document.getElementById('controls-container'),
+            plotTotalsDiv: document.getElementById('plot-totals'), plotMarginalsDiv: document.getElementById('plot-marginals'),
+            analysisContainer: document.getElementById('analysis-container'), problemContainer: document.getElementById('problem-container')
+        };
+        const scenarios = {
+            startup: { a: 180, b: 2, f: 200, v: 20, w: 0.2 },
+            utility: { a: 120, b: 1, f: 1000, v: 10, w: 0.5 }
+        };
+        const problem = {
+            text: "A firm faces Demand: <code>P = 150 - Q</code> and Total Cost: <code>TC = 500 + 10Q + 2Q²</code>. Find the profit-maximizing quantity (Q*), price (P*), and the maximum profit.",
+            answers: { q: 23.33, p: 126.67, profit: 1133.33 }
+        };
+
+        // --- Core Logic ---
+        const TC = (q, f, v, w) => f + v * q + w * q**2;
+        const TR = (q, a, b) => (a - b * q) * q;
+        const Profit = (q, p) => TR(q, p.a, p.b) - TC(q, p.f, p.v, p.w);
+        const MC = (q, v, w) => v + 2 * w * q;
+        const MR = (q, a, b) => a - 2 * b * q;
+
+        function solveOptimal(p) {
+            const q_opt = (p.a - p.v) / (2 * p.b + 2 * p.w);
+            if (q_opt <= 0) return { q_opt: 0, p_opt: p.a, profit_max: -p.f };
+            const p_opt = p.a - p.b * q_opt;
+            const profit_max = Profit(q_opt, p);
+            return { q_opt, p_opt, profit_max };
+        }
+
+        function updateAll() {
+            const params = {};
+            elements.controlsContainer.querySelectorAll('input[type=number]').forEach(i => params[i.dataset.param] = parseFloat(i.value));
+            const optimal = solveOptimal(params);
+            updatePlots(params, optimal);
+            updateAnalysis(params, optimal);
+        }
+
+        // --- UI & Event Binding ---
+        function populateControls(p = {a: 120, b: 1, f: 100, v: 10, w: 0.5}) {
+            elements.controlsContainer.innerHTML = `
+                <h3 class="text-lg font-semibold mb-3">Market Demand (P = a - bQ)</h3>
+                <div class="space-y-4 mb-6">
+                    <div class="flex items-center space-x-3"><label class="slider-label text-sm">Intercept (a):</label><input type="range" data-param="a" min="50" max="200" step="1" value="${p.a}"><input type="number" data-param="a" value="${p.a}"></div>
+                    <div class="flex items-center space-x-3"><label class="slider-label text-sm">Slope (b):</label><input type="range" data-param="b" min="0.5" max="5" step="0.1" value="${p.b}"><input type="number" data-param="b" value="${p.b}"></div>
+                </div>
+                <h3 class="text-lg font-semibold mb-3">Firm's Costs (TC = f + vQ + wQ²)</h3>
+                <div class="space-y-4">
+                    <div class="flex items-center space-x-3"><label class="slider-label text-sm">Fixed Cost (f):</label><input type="range" data-param="f" min="0" max="1000" step="10" value="${p.f}"><input type="number" data-param="f" value="${p.f}"></div>
+                    <div class="flex items-center space-x-3"><label class="slider-label text-sm">Variable Cost (v):</label><input type="range" data-param="v" min="0" max="50" step="1" value="${p.v}"><input type="number" data-param="v" value="${p.v}"></div>
+                    <div class="flex items-center space-x-3"><label class="slider-label text-sm">Cost Curvature (w):</label><input type="range" data-param="w" min="0.1" max="5" step="0.1" value="${p.w}"><input type="number" data-param="w" value="${p.w}"></div>
+                </div>`;
+            bindControlEvents();
+        }
+
+        function bindControlEvents() {
+            elements.controlsContainer.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', () => {
+                    if (input.type === 'range') input.nextElementSibling.value = input.value;
+                    else if(input.type === 'number' && input.previousElementSibling) input.previousElementSibling.value = input.value;
+                    elements.loadScenario.value = 'custom';
+                    updateAll();
+                });
+            });
+        }
+        
+        function handleScenarioLoad() {
+            const scenarioKey = elements.loadScenario.value;
+            populateControls(scenarioKey === 'custom' ? undefined : scenarios[scenarioKey]);
+            updateAll();
+        }
+
+        function setupProblem() {
+            elements.problemContainer.innerHTML = `<p class="text-slate-600 mb-4">${problem.text}</p>
+                <div class="flex flex-wrap gap-4 items-center mb-4">
+                    <div class="flex items-center gap-2"><label class="font-medium">Q* =</label><input type="number" id="answer_q" class="p-1"></div>
+                    <div class="flex items-center gap-2"><label class="font-medium">P* =</label><input type="number" id="answer_p" class="p-1"></div>
+                    <div class="flex items-center gap-2"><label class="font-medium">Profit =</label><input type="number" id="answer_profit" class="p-1"></div>
+                </div>
+                <button id="checkAnswerBtn" class="bg-indigo-600 text-white py-2 px-4 rounded-md">Check</button>
+                <div id="feedback" class="mt-2 text-sm"></div><div id="solution" class="hidden mt-4 explanation-box"></div>`;
+            document.getElementById('checkAnswerBtn').addEventListener('click', checkAnswer);
+        }
+
+        function checkAnswer() {
+            const userQ = parseFloat(document.getElementById('answer_q').value);
+            const userP = parseFloat(document.getElementById('answer_p').value);
+            const userProfit = parseFloat(document.getElementById('answer_profit').value);
+            
+            const fields = [
+                { el: document.getElementById('answer_q'), correct: Math.abs(userQ - problem.answers.q) < 0.05 },
+                { el: document.getElementById('answer_p'), correct: Math.abs(userP - problem.answers.p) < 0.05 },
+                { el: document.getElementById('answer_profit'), correct: Math.abs(userProfit - problem.answers.profit) < 0.05 }
+            ];
+            
+            let allCorrect = true;
+            fields.forEach(field => {
+                field.el.className = field.correct ? 'p-1 feedback-correct' : 'p-1 feedback-incorrect';
+                if (!field.correct) allCorrect = false;
+            });
+            
+            const feedbackEl = document.getElementById('feedback');
+            feedbackEl.innerHTML = allCorrect ? `<span class="font-bold text-green-600">Correct!</span>` : `<span class="font-bold text-red-600">Not quite.</span>`;
+            feedbackEl.innerHTML += ` <button id="showSolutionBtn" class="text-indigo-600 underline text-xs ml-2">Show Solution</button>`;
+            document.getElementById('showSolutionBtn').addEventListener('click', () => {
+                const solEl = document.getElementById('solution');
+                solEl.innerHTML = `<strong>Step-by-step Solution:</strong>
+                <ol class="list-decimal ml-5 mt-2 space-y-1">
+                    <li>Find MR and MC. MR = d(TR)/dQ = d(150Q - Q²)/dQ = 150 - 2Q. <br>MC = d(TC)/dQ = 10 + 4Q.</li>
+                    <li>Set MR = MC to find Q*: <br><code>150 - 2Q = 10 + 4Q</code><br><code>140 = 6Q</code> => <code>Q* ≈ ${problem.answers.q.toFixed(2)}</code></li>
+                    <li>Find P* from the demand curve: <br><code>P* = 150 - ${problem.answers.q.toFixed(2)} ≈ ${problem.answers.p.toFixed(2)}</code></li>
+                    <li>Calculate Profit = TR - TC: <br><code>(${problem.answers.p.toFixed(2)} * ${problem.answers.q.toFixed(2)}) - (500 + 10*${problem.answers.q.toFixed(2)} + 2*${problem.answers.q.toFixed(2)}²) ≈ ${problem.answers.profit.toFixed(2)}</code></li>
+                </ol>`;
+                solEl.classList.remove('hidden');
+            });
+        }
+        
+        // Plotting and Analysis Update
+        function updatePlots(p, optimal) {
+            const max_q = optimal.q_opt > 0 ? optimal.q_opt * 2 : 20;
+            const q_vals = Array.from({length: 101}, (_, i) => (i/100)*max_q);
+            const commonLayout = { margin:{l:60,r:30,b:50,t:50}, paper_bgcolor:'rgba(0,0,0,0)', plot_bgcolor:'rgba(0,0,0,0)', xaxis:{title:'Q', range:[0,max_q]}, legend:{x:0.01, y:0.98}};
+            
+            Plotly.react(elements.plotTotalsDiv, [
+                {x:q_vals, y:q_vals.map(q=>TR(q,p.a,p.b)), name:'Total Revenue', line:{color:'#16A34A'}},
+                {x:q_vals, y:q_vals.map(q=>TC(q,p.f,p.v,p.w)), name:'Total Cost', line:{color:'#DC2626'}},
+                {x:q_vals, y:q_vals.map(q=>Profit(q,p)), name:'Profit', yaxis:'y2', line:{color:'#F97316', dash:'dash'}},
+                {x:[optimal.q_opt], y:[optimal.profit_max], mode:'markers', name:'Max Profit', yaxis:'y2', marker:{color:'#F97316',size:12,symbol:'star'}}
+            ], {...commonLayout, title:'Total Revenue, Cost, and Profit', yaxis:{title:'$'}, yaxis2:{title:'Profit', overlaying:'y', side:'right'}});
+            
+            Plotly.react(elements.plotMarginalsDiv, [
+                {x:q_vals, y:q_vals.map(q=>MR(q,p.a,p.b)), name:'Marginal Revenue', line:{color:'#16A34A'}},
+                {x:q_vals, y:q_vals.map(q=>MC(q,p.v,p.w)), name:'Marginal Cost', line:{color:'#DC2626'}},
+                {x:[optimal.q_opt], y:[MR(optimal.q_opt, p.a, p.b)], mode:'markers', name:'MR=MC', marker:{color:'#1E293B',size:12,symbol:'star'}}
+            ], {...commonLayout, title:'Marginal Revenue and Cost', yaxis:{title:'$', range:[0, p.a * 1.1]}});
+        }
+
+        function updateAnalysis(p, optimal) {
+            const createRow = (label, value) => `<div class="bg-slate-50 p-3 rounded-lg"><div class="text-slate-600">${label}</div><div class="text-xl font-bold text-slate-800">${value}</div></div>`;
+            const profitClass = optimal.profit_max >= 0 ? 'text-green-600' : 'text-red-600';
+            elements.analysisContainer.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${createRow('Optimal Quantity (Q*):', optimal.q_opt.toFixed(2))}
+                ${createRow('Optimal Price (P*):', `$${optimal.p_opt.toFixed(2)}`)}
+                ${createRow('Maximum Profit:', `<span class="${profitClass}">$${optimal.profit_max.toFixed(2)}</span>`)}
+            </div>`;
+        }
+
+        // --- Initialization ---
+        elements.loadScenario.addEventListener('change', handleScenarioLoad);
+        handleScenarioLoad();
+        setupProblem();
+    </script>
+</body>
+</html>
