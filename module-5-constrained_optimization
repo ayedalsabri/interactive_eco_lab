@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Module 5: Constrained Optimization Visualizer (Upgraded)</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .control-panel-bg, .plot-bg, .results-bg { background-color: #ffffff; }
+        .slider-label { min-width: 140px; }
+        h1, h2, h3 { color: #1e293b; }
+        .explanation-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 1rem; border-radius: 0.5rem; margin-top: 1rem; }
+        input[type="number"] { -moz-appearance: textfield; width: 70px; text-align: center; border: 1px solid #cbd5e1; border-radius: 0.25rem; }
+        input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .hidden { display: none; }
+        .nav-link { padding: 8px 12px; border-radius: 6px; transition: background-color 0.2s; }
+        .nav-link:hover, .nav-link.active { background-color: #eef2ff; color: #4f46e5; }
+        .feedback-correct { border: 2px solid #22c55e !important; }
+        .feedback-incorrect { border: 2px solid #ef4444 !important; }
+        code { background-color: #e2e8f0; padding: 0.1rem 0.3rem; border-radius: 0.25rem; font-family: monospace; }
+        .toggle-btn { transition: background-color 0.2s ease-in-out; }
+        .toggle-btn.active { background-color: #4f46e5; color: white; }
+        .toggle-btn:not(.active) { background-color: #e2e8f0; color: #475569; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Intra-Module Navigation -->
+     <nav class="max-w-7xl mx-auto mb-8 bg-white p-3 rounded-lg shadow-sm border border-slate-200">
+        <div class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm font-medium text-slate-700">
+            <a href="index.html" class="nav-link">Dashboard</a>
+            <a href="module-1-builder.html" class="nav-link">1. Builder</a>
+            <a href="module-2-equilibrium.html" class="nav-link">2. Equilibrium</a>
+            <a href="module-3-elasticity.html" class="nav-link">3. Elasticity</a>
+            <a href="module-4-optimization.html" class="nav-link">4. Optimization</a>
+            <a href="module-5-constrained.html" class="nav-link active">5. Constrained Opt.</a>
+            <a href="module-6-production.html" class="nav-link">6. Production/IO</a>
+            <a href="module-7-surplus-lp.html" class="nav-link">7. Surplus/LP</a>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">Constrained Optimization Visualizer</h1>
+            <p class="text-lg text-slate-600">Explore Consumer and Producer Theory.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1 space-y-8">
+                <div class="control-panel-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-4">Controls</h2>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-slate-700 mb-2">1. Select Theory:</label>
+                        <div class="flex rounded-md shadow-sm">
+                            <button id="btn-consumer" class="toggle-btn w-1/2 rounded-l-md py-2 px-4">Consumer</button>
+                            <button id="btn-producer" class="toggle-btn w-1/2 rounded-r-md py-2 px-4">Producer</button>
+                        </div>
+                    </div>
+                     <div class="mb-6">
+                        <label for="loadScenario" class="block text-sm font-medium text-slate-700 mb-2">2. Load Scenario:</label>
+                        <select id="loadScenario" class="w-full p-2 border rounded-md shadow-sm"></select>
+                    </div>
+                    <div id="controls-container"></div>
+                </div>
+                <div class="results-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-4">Practice Problem</h2>
+                    <div id="problem-container"></div>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-8">
+                <div class="plot-bg p-4 rounded-xl shadow-lg border border-slate-200 min-h-[450px]">
+                    <div id="plot-container" class="w-full h-full"></div>
+                </div>
+                <div class="results-bg p-6 rounded-xl shadow-lg border border-slate-200">
+                    <h2 class="text-2xl font-semibold mb-4 border-b pb-4">Sandbox Analysis</h2>
+                    <div id="analysis-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const elements = {
+            btnConsumer: document.getElementById('btn-consumer'), btnProducer: document.getElementById('btn-producer'),
+            loadScenario: document.getElementById('loadScenario'), controlsContainer: document.getElementById('controls-container'),
+            plotContainer: document.getElementById('plot-container'), analysisContainer: document.getElementById('analysis-container'),
+            problemContainer: document.getElementById('problem-container')
+        };
+        
+        let mode = 'consumer';
+        
+        const scenarios = {
+            consumer: { custom: { name: "-- Custom Sandbox --" }, coffeeBooks: { name: "Budget: Coffee & Books", params: { alpha: 0.3, income: 100, px: 5, py: 20 } }, foodEnt: { name: "Budget: Food & Entertainment", params: { alpha: 0.6, income: 500, px: 10, py: 50 } } },
+            producer: { custom: { name: "-- Custom Sandbox --" }, manufacturing: { name: "Manufacturing Inputs", params: { alpha: 0.7, income: 1000, px: 20, py: 50 } }, tech: { name: "Tech Firm Inputs", params: { alpha: 0.4, income: 2000, px: 100, py: 25 } } }
+        };
+        const problems = {
+            consumer: { text: "A consumer has utility <code>U = X<sup>0.4</sup>Y<sup>0.6</sup></code>, income of $200, Px=$4, and Py=$10. Find the optimal quantities of X and Y.", answers: { x: 20, y: 12 } },
+            producer: { text: "A firm has production <code>Q = L<sup>0.8</sup>K<sup>0.2</sup></code>, a budget of $5000, wage(w)=$25, and rental rate(r)=$100. Find the optimal L and K.", answers: { l: 160, k: 10 } }
+        };
+
+        // --- Core Logic ---
+        const U = (X, Y, alpha) => (X**alpha) * (Y**(1 - alpha));
+        function solveOptimal(p) {
+            const x_opt = p.alpha * p.income / p.px;
+            const y_opt = (1 - p.alpha) * p.income / p.py;
+            const u_max = U(x_opt, y_opt, p.alpha);
+            const lambda = (p.alpha**p.alpha) * ((1-p.alpha)**(1-p.alpha)) / ((p.px**p.alpha) * (p.py**(1-p.alpha)));
+            return { x_opt, y_opt, u_max, lambda };
+        }
+
+        function updateAll() {
+            const params = {};
+            elements.controlsContainer.querySelectorAll('input[type=number]').forEach(i => params[i.dataset.param] = parseFloat(i.value));
+            const optimal = solveOptimal(params);
+            updatePlot(params, optimal);
+            updateAnalysis(params, optimal);
+        }
+
+        // --- UI & Event Binding ---
+        function switchMode(newMode) {
+            mode = newMode;
+            elements.btnConsumer.classList.toggle('active', mode === 'consumer');
+            elements.btnProducer.classList.toggle('active', mode === 'producer');
+            
+            // Populate scenarios
+            elements.loadScenario.innerHTML = '';
+            for(const key in scenarios[mode]) {
+                elements.loadScenario.innerHTML += `<option value="${key}">${scenarios[mode][key].name}</option>`;
+            }
+            
+            populateControls();
+            setupProblem();
+            updateAll();
+        }
+
+        function populateControls(p = { alpha: 0.5, income: 500, px: 10, py: 20 }) {
+            const isConsumer = mode === 'consumer';
+            elements.controlsContainer.innerHTML = `
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3">${isConsumer ? 'Utility' : 'Production'} Function (U or Q = ${isConsumer ? 'X' : 'L'}<sup>${p.alpha.toFixed(2)}</sup>${isConsumer ? 'Y' : 'K'}<sup>${(1-p.alpha).toFixed(2)}</sup>)</h3>
+                    <div class="flex items-center space-x-3"><label class="slider-label text-sm">Preference (α):</label><input type="range" data-param="alpha" min="0.1" max="0.9" step="0.05" value="${p.alpha}"><input type="number" data-param="alpha" value="${p.alpha}"></div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-3">${isConsumer ? 'Budget' : 'Isocost'} Constraint</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-center space-x-3"><label class="slider-label text-sm">${isConsumer ? 'Income (I)' : 'Total Cost (C)'}:</label><input type="range" data-param="income" min="100" max="5000" step="10" value="${p.income}"><input type="number" data-param="income" value="${p.income}"></div>
+                        <div class="flex items-center space-x-3"><label class="slider-label text-sm">${isConsumer ? 'Price of X (Px)' : 'Wage Rate (w)'}:</label><input type="range" data-param="px" min="5" max="100" step="1" value="${p.px}"><input type="number" data-param="px" value="${p.px}"></div>
+                        <div class="flex items-center space-x-3"><label class="slider-label text-sm">${isConsumer ? 'Price of Y (Py)' : 'Rental Rate (r)'}:</label><input type="range" data-param="py" min="5" max="100" step="1" value="${p.py}"><input type="number" data-param="py" value="${p.py}"></div>
+                    </div>
+                </div>`;
+            bindControlEvents();
+        }
+
+        function bindControlEvents() {
+            elements.controlsContainer.querySelectorAll('input').forEach(input => {
+                input.addEventListener('input', () => {
+                    if(input.type === 'range') input.nextElementSibling.value = input.value;
+                    else if(input.previousElementSibling) input.previousElementSibling.value = input.value;
+                    elements.loadScenario.value = 'custom';
+                    updateAll();
+                });
+            });
+        }
+        
+        function handleScenarioLoad() {
+            const scenarioKey = elements.loadScenario.value;
+            if (scenarioKey === 'custom') return;
+            populateControls(scenarios[mode][scenarioKey].params);
+            updateAll();
+        }
+
+        function setupProblem() {
+            const p = problems[mode];
+            const isConsumer = mode === 'consumer';
+            elements.problemContainer.innerHTML = `<p class="text-slate-600 mb-4">${p.text}</p>
+                <div class="flex flex-wrap gap-4 items-center mb-4">
+                    <div class="flex items-center gap-2"><label class="font-medium">${isConsumer ? 'X*' : 'L*'} =</label><input type="number" id="answer_x" class="p-1"></div>
+                    <div class="flex items-center gap-2"><label class="font-medium">${isConsumer ? 'Y*' : 'K*'} =</label><input type="number" id="answer_y" class="p-1"></div>
+                </div>
+                <button id="checkAnswerBtn" class="bg-indigo-600 text-white py-2 px-4 rounded-md">Check</button>
+                <div id="feedback" class="mt-2 text-sm"></div><div id="solution" class="hidden mt-4 explanation-box"></div>`;
+            document.getElementById('checkAnswerBtn').addEventListener('click', checkAnswer);
+        }
+
+        function checkAnswer() {
+            const p = problems[mode];
+            const userX = parseFloat(document.getElementById('answer_x').value);
+            const userY = parseFloat(document.getElementById('answer_y').value);
+            const x_correct = Math.abs(userX - p.answers.x) < 0.05;
+            const y_correct = Math.abs(userY - p.answers.y) < 0.05;
+            document.getElementById('answer_x').className = x_correct ? 'p-1 feedback-correct' : 'p-1 feedback-incorrect';
+            document.getElementById('answer_y').className = y_correct ? 'p-1 feedback-correct' : 'p-1 feedback-incorrect';
+            const feedbackEl = document.getElementById('feedback');
+            feedbackEl.innerHTML = x_correct && y_correct ? `<span class="font-bold text-green-600">Correct!</span>` : `<span class="font-bold text-red-600">Not quite.</span>`;
+            feedbackEl.innerHTML += ` <button id="showSolutionBtn" class="text-indigo-600 underline text-xs ml-2">Show Solution</button>`;
+            document.getElementById('showSolutionBtn').addEventListener('click', showSolution);
+        }
+
+        function showSolution() {
+            const p = problems[mode];
+            const isConsumer = mode === 'consumer';
+            const solEl = document.getElementById('solution');
+            solEl.innerHTML = `<strong>Step-by-step Solution:</strong>
+                <ol class="list-decimal ml-5 mt-2 space-y-1">
+                    <li>The tangency condition is MRS = Px/Py (or MRTS = w/r). For Cobb-Douglas, MRS = (α/β) * (Y/X), where β = 1-α.</li>
+                    <li>Set up the equation: <code>(α / (1-α)) * (Y/X) = Px / Py</code>.</li>
+                    <li>Solve for Y to get the optimal expansion path: <code>Y = ((1-α)/α) * (Px/Py) * X</code>.</li>
+                    <li>Substitute this Y into the budget constraint <code>Px*X + Py*Y = I</code>.</li>
+                    <li>Solve for X*: <code>X* = (α * I) / Px</code> => <strong>${p.answers.x.toFixed(2)}</strong>.</li>
+                    <li>Substitute X* back to find Y*: <code>Y* = ((1-α) * I) / Py</code> => <strong>${p.answers.y.toFixed(2)}</strong>.</li>
+                </ol>`;
+            solEl.classList.remove('hidden');
+        }
+
+        // Plotting & Analysis
+        function updatePlot(p, optimal) {
+             const x_max = p.income / p.px; const y_max = p.income / p.py;
+             const max_range = Math.max(x_max, y_max) * 1.2;
+             const x = Array.from({length:50},(_,i)=>(i/49)*max_range); const y=Array.from({length:50},(_,i)=>(i/49)*max_range);
+             const z = y.map(yi=>x.map(xi=>U(xi,yi,p.alpha)));
+             const traces = [
+                { x:x,y:y,z:z,type:'contour',colorscale:'Viridis',showscale:false,contours:{coloring:'lines',start:0,end:optimal.u_max*2,size:optimal.u_max/3}},
+                { x:[x_max,0], y:[0,y_max], mode:'lines',name:'Constraint',line:{color:'#DC2626',width:3}},
+                { x:[optimal.x_opt], y:[optimal.y_opt], mode:'markers',name:'Optimal', marker:{color:'#1E293B',size:14,symbol:'star'}}
+             ];
+             const labels = mode==='consumer' ? {x:'Good X',y:'Good Y',title:'Consumer Choice'} : {x:'Labor (L)',y:'Capital (K)', title:'Producer Choice'};
+             Plotly.react(elements.plotContainer, traces, {title:labels.title,xaxis:{title:labels.x,range:[0,max_range]},yaxis:{title:labels.y,range:[0,max_range]},...commonLayout});
+        }
+        function updateAnalysis(p, optimal) {
+            const createRow = (label,value)=>`<div class="bg-slate-50 p-3 rounded-lg"><div class="text-slate-600">${label}</div><div class="text-xl font-bold text-slate-800">${value}</div></div>`;
+            const isConsumer = mode === 'consumer';
+            const x_label = isConsumer ? 'Optimal Good X' : 'Optimal Labor (L*)';
+            const y_label = isConsumer ? 'Optimal Good Y' : 'Optimal Capital (K*)';
+            const u_label = isConsumer ? 'Maximum Utility' : 'Maximum Output (Q*)';
+            elements.analysisContainer.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                ${createRow(x_label, optimal.x_opt.toFixed(2))} ${createRow(y_label, optimal.y_opt.toFixed(2))}
+                ${createRow(u_label, optimal.u_max.toFixed(2))} ${createRow('Lagrange Multiplier (λ)', optimal.lambda.toFixed(3))}
+            </div>`;
+        }
+        const commonLayout = {showlegend:false, margin:{l:60,r:30,b:50,t:50}, paper_bgcolor:'rgba(0,0,0,0)',plot_bgcolor:'rgba(0,0,0,0)'};
+
+        // --- Initialization ---
+        elements.btnConsumer.addEventListener('click', () => switchMode('consumer'));
+        elements.btnProducer.addEventListener('click', () => switchMode('producer'));
+        elements.loadScenario.addEventListener('change', handleScenarioLoad);
+        switchMode('consumer');
+    </script>
+</body>
+</html>
